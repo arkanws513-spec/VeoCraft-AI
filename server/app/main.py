@@ -19,6 +19,7 @@ from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from PIL import Image, UnidentifiedImageError
 
 app = FastAPI(title="VeoCraft AI API", version="0.2.0")
 ROOT = Path(__file__).resolve().parents[2]
@@ -104,6 +105,15 @@ async def upload_image(file: UploadFile = File(...)) -> dict[str, str]:
                 if size > MAX_IMAGE_BYTES:
                     raise HTTPException(413, detail={"code": "IMAGE_TOO_LARGE", "message": "Image limit is 12 MB."})
                 target.write(chunk)
+        try:
+            with Image.open(destination) as image:
+                if image.width * image.height > 40_000_000:
+                    raise HTTPException(413, detail={"code": "IMAGE_DIMENSIONS_TOO_LARGE", "message": "Image dimensions exceed the 40-megapixel limit."})
+                image.verify()
+        except HTTPException:
+            raise
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+            raise HTTPException(415, detail={"code": "INVALID_IMAGE", "message": "The uploaded file is not a valid supported image."}) from exc
     except Exception:
         destination.unlink(missing_ok=True)
         raise
