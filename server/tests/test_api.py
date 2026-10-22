@@ -9,6 +9,7 @@ def test_health_reports_api_only():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert response.json()["service"] == "veocraft-api"
 
 
 def test_engine_is_not_configured_by_default(monkeypatch):
@@ -33,3 +34,11 @@ def test_generate_does_not_fake_a_video():
     )
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "ENGINE_NOT_CONFIGURED"
+
+
+def test_generation_request_rejects_invalid_duration():
+    response = client.post(
+        "/api/generate",
+        json={"prompt": "A quiet sunrise", "duration_seconds": 60},
+    )
+    assert response.status_code == 422
