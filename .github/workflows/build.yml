@@ -32,5 +32,7 @@ jobs:
           python-version: '3.12'
       - name: Install API dependencies
         run: pip install -r server/requirements.txt
+      - name: Compile Python sources
+        run: python -m compileall -q server scripts
       - name: Run API tests
         run: pytest -q server/tests
