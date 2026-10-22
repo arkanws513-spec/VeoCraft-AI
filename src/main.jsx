@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\\/$/, "");
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
@@ -10,7 +11,11 @@ function App() {
   const [duration, setDuration] = useState("5");
   const [quality, setQuality] = useState("720p");
   const [imageName, setImageName] = useState("");
+  const [imageToken, setImageToken] = useState("");
   const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [generatedVideo, setGeneratedVideo] = useState("");
+  const [generationStatus, setGenerationStatus] = useState("");
   const isArabic = language === "ar";
 
   const copy = isArabic ? {
@@ -47,15 +52,73 @@ function App() {
     engineTag: "OPEN-WEIGHTS FIRST", project: "New project", mobile: "Web-ready — responsive mobile layout"
   };
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     if (!prompt.trim()) {
       setNotice(isArabic ? "اكتب وصف المشهد أولًا." : "Please enter a scene prompt first.");
       return;
     }
-    setNotice(isArabic
-      ? "تم تجهيز إعدادات المشروع محليًا. محرك التوليد الحقيقي لم يُربط بعد، لذلك لم يتم إنشاء فيديو."
-      : "Project settings are prepared locally. The real generation engine is not connected yet, so no video has been generated.");
+    if (mode === "image" && !imageToken) {
+      setNotice(isArabic ? "ارفع صورة مرجعية وانتظر اكتمال رفعها أولًا." : "Upload a reference image and wait for the upload to finish first.");
+      return;
+    }
+    setBusy(true);
+    setGeneratedVideo("");
+    setGenerationStatus(isArabic ? "جارٍ إرسال الطلب..." : "Submitting request...");
+    setNotice("");
+    try {
+      const response = await fetch(API_BASE + "/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt.trim(), mode, aspect_ratio: ratio,
+          duration_seconds: Number(duration), resolution: quality,
+          image_reference: mode === "image" ? imageToken : null
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.detail?.message || data?.detail || (isArabic ? "تعذر بدء التوليد." : "Could not start generation."));
+      const jobId = data.id;
+      for (let attempt = 0; attempt < 720; attempt++) {
+        const statusResponse = await fetch(API_BASE + "/api/jobs/" + encodeURIComponent(jobId));
+        const statusData = await statusResponse.json();
+        if (!statusResponse.ok) throw new Error(statusData?.detail?.message || "Job status unavailable");
+        setGenerationStatus(statusData.message || statusData.status);
+        if (statusData.status === "completed" && statusData.video_url) {
+          setGeneratedVideo(API_BASE + statusData.video_url);
+          setNotice(isArabic ? "اكتمل التوليد وتم التحقق من وجود ملف الفيديو." : "Generation completed and the video file was verified.");
+          setBusy(false);
+          return;
+        }
+        if (statusData.status === "failed") throw new Error(statusData.message || "Generation failed");
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
+      throw new Error(isArabic ? "انتهت مهلة انتظار الحالة. تحقق من الخادم." : "Status polling timed out. Check the server.");
+    } catch (error) {
+      setNotice((isArabic ? "لم يكتمل التوليد: " : "Generation failed: ") + (error?.message || "Unknown error"));
+      setGenerationStatus(isArabic ? "فشل" : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function uploadReference(file) {
+    setImageName(file?.name || "");
+    setImageToken("");
+    setNotice("");
+    if (!file) return;
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const response = await fetch(API_BASE + "/api/upload-image", { method: "POST", body });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.detail?.message || "Image upload failed");
+      setImageToken(data.image_reference);
+      setNotice(isArabic ? "تم رفع الصورة المرجعية بنجاح." : "Reference image uploaded successfully.");
+    } catch (error) {
+      setImageName("");
+      setNotice((isArabic ? "فشل رفع الصورة: " : "Image upload failed: ") + (error?.message || "Unknown error"));
+    }
   }
 
   return (
@@ -65,7 +128,7 @@ function App() {
           <span className="brand-mark"><span>V</span><i /></span>
           <span className="brand-name">VeoCraft <b>AI</b><small>CREATIVE LAB</small></span>
         </a>
-        <button className="new-project" onClick={() => {setPrompt(""); setNotice("");}}>
+        <button className="new-project" onClick={() => {setPrompt(""); setNotice(""); setGeneratedVideo(""); setGenerationStatus(""); setImageToken(""); setImageName("");}}>
           <span>＋</span> {copy.project}
         </button>
         <div className="nav-label">{copy.workspace}</div>
@@ -96,10 +159,10 @@ function App() {
           <form className="panel prompt-panel" onSubmit={submit}>
             <div className="panel-heading"><div><span className="step">01</span><h2>{isArabic ? "صِف رؤيتك" : "Describe your vision"}</h2></div><span className="optional">{isArabic ? "ابدأ من فكرتك" : "Start with an idea"}</span></div>
             <div className="mode-switch">
-              <button type="button" className={mode === "text" ? "mode active" : "mode"} onClick={() => {setMode("text");setNotice("");}}><span>✧</span>{copy.textMode}</button>
-              <button type="button" className={mode === "image" ? "mode active" : "mode"} onClick={() => {setMode("image");setNotice("");}}><span>▧</span>{copy.imageMode}</button>
+              <button type="button" className={mode === "text" ? "mode active" : "mode"} onClick={() => {setMode("text");setNotice("");setImageToken("");setImageName("");}}><span>✧</span>{copy.textMode}</button>
+              <button type="button" className={mode === "image" ? "mode active" : "mode"} onClick={() => {setMode("image");setNotice("");setImageToken("");setImageName("");}}><span>▧</span>{copy.imageMode}</button>
             </div>
-            {mode === "image" && <label className="upload-box"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => setImageName(e.target.files?.[0]?.name || "")} /><span className="upload-icon">＋</span><strong>{imageName || copy.upload}</strong><small>{copy.uploadHint}</small></label>}
+            {mode === "image" && <label className="upload-box"><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => uploadReference(e.target.files?.[0])} /><span className="upload-icon">＋</span><strong>{imageName || copy.upload}</strong><small>{copy.uploadHint}</small></label>}
             <label className="field-label" htmlFor="prompt">{copy.prompt}<span className="required">●</span></label>
             <textarea id="prompt" value={prompt} onChange={e => {setPrompt(e.target.value);setNotice("");}} placeholder={copy.placeholder} maxLength={2000} rows={6} />
             <div className="textarea-footer"><span>{copy.hint}</span><span>{prompt.length}/2000</span></div>
@@ -111,25 +174,25 @@ function App() {
               <label className="setting"><span>{copy.duration}</span><select value={duration} onChange={e => setDuration(e.target.value)}><option value="5">5 {isArabic ? "ثوانٍ" : "seconds"}</option><option value="8">8 {isArabic ? "ثوانٍ" : "seconds"}</option><option value="10">10 {isArabic ? "ثوانٍ" : "seconds"}</option><option value="15">15 {isArabic ? "ثانية" : "seconds"}</option></select><small>{isArabic ? "المدة الفعلية تعتمد على النموذج" : "Actual duration depends on the model"}</small></label>
               <label className="setting full"><span>{copy.quality}</span><select value={quality} onChange={e => setQuality(e.target.value)}><option>480p</option><option>720p</option><option>1080p</option></select><small>{isArabic ? "خيارات الدقة ستتحدد حسب قدرة محرك التوليد." : "Available resolution will depend on the generation engine."}</small></label>
             </div>
-            <button className="generate-btn" type="submit"><span>✦</span>{copy.generate}<b>↗</b></button>
+            <button className="generate-btn" type="submit" disabled={busy}><span>✦</span>{busy ? (isArabic ? "جارٍ التوليد..." : "Generating...") : copy.generate}<b>{busy ? "…" : "↗"}</b></button>
             {notice && <div className="notice" role="status"><span>ⓘ</span><p>{notice}</p></div>}
           </form>
 
           <section className="panel preview-panel">
             <div className="panel-heading"><div><span className="step">03</span><h2>{copy.preview}</h2></div><span className="preview-pill"><i /> {isArabic ? "معاينة" : "Preview"}</span></div>
             <div className={"preview-stage ratio-" + ratio.replace(":","x")}>
-              <div className="preview-grid" /><div className="preview-glow glow-a" /><div className="preview-glow glow-b" />
+              {generatedVideo ? <video className="generated-video" controls playsInline src={generatedVideo} /> : <><div className="preview-grid" /><div className="preview-glow glow-a" /><div className="preview-glow glow-b" />
               <div className="preview-placeholder"><div className="play-symbol"><span>▶</span></div><strong>{copy.waiting}</strong><p>{copy.waitingSub}</p><div className="preview-lines"><i /><i /><i /></div></div>
               <div className="stage-corner top-left" /><div className="stage-corner top-right" /><div className="stage-corner bottom-left" /><div className="stage-corner bottom-right" />
-              <span className="stage-ratio">{ratio}</span>
+              <span className="stage-ratio">{ratio}</span></>}
             </div>
-            <p className="preview-caption">{copy.previewSub}</p>
+            <p className="preview-caption">{generatedVideo ? (isArabic ? "الفيديو جاهز للتشغيل والتنزيل من مشغل الفيديو." : "Your generated video is ready to play and download from the player.") : (generationStatus || copy.previewSub)}</p>
             <div className="preview-meta"><div><span>{isArabic ? "النمط" : "Mode"}</span><strong>{mode === "text" ? copy.textMode : copy.imageMode}</strong></div><div><span>{isArabic ? "المدة" : "Duration"}</span><strong>{duration}s</strong></div><div><span>{isArabic ? "الدقة" : "Resolution"}</span><strong>{quality}</strong></div></div>
             <div className="transparency"><div className="transparency-icon">✓</div><div><strong>{copy.note}</strong><p>{copy.noteText}</p></div></div>
           </section>
         </div>
 
-        <section className="status-strip"><div className="status-item"><span className="status-icon">◌</span><div><small>{copy.status}</small><strong>{copy.statusText}</strong></div></div><div className="status-item"><span className="status-icon">✳</span><div><small>{copy.runtime}</small><strong>{copy.runtimeText}</strong></div></div><div className="status-item"><span className="status-icon">◇</span><div><small>{copy.cost}</small><strong>{copy.costText}</strong></div></div><div className="version">V 0.1.0 <span>•</span> FOUNDATION</div></section>
+        <section className="status-strip"><div className="status-item"><span className="status-icon">◌</span><div><small>{copy.status}</small><strong>{copy.statusText}</strong></div></div><div className="status-item"><span className="status-icon">✳</span><div><small>{copy.runtime}</small><strong>{copy.runtimeText}</strong></div></div><div className="status-item"><span className="status-icon">◇</span><div><small>{copy.cost}</small><strong>{copy.costText}</strong></div></div><div className="version">V 0.2.0 <span>•</span> LOCAL INFERENCE</div></section>
         <footer>VeoCraft AI <span>·</span> {isArabic ? "مصنوع لبناء أدوات إبداعية مفتوحة" : "Built for open creative tools"}</footer>
       </main>
     </div>
