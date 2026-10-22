@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+models/
+outputs/
+.DS_Store
