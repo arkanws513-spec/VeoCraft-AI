@@ -11,3 +11,8 @@ dist/
 models/
 outputs/
 .DS_Store
+
+runtime_data/
+.venv/
+__pycache__/
+.pytest_cache/
