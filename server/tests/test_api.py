@@ -59,3 +59,12 @@ def test_image_upload_rejects_non_images():
         files={"file": ("notes.txt", b"not an image", "text/plain")},
     )
     assert response.status_code == 415
+
+
+def test_image_upload_rejects_corrupt_image_bytes():
+    response = client.post(
+        "/api/upload-image",
+        files={"file": ("fake.png", b"not actually a png", "image/png")},
+    )
+    assert response.status_code == 415
+    assert response.json()["detail"]["code"] == "INVALID_IMAGE"
