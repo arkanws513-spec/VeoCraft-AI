@@ -203,6 +203,7 @@ function App() {
               <span className="stage-ratio">{ratio}</span></>}
             </div>
             <p className="preview-caption">{generatedVideo ? (isArabic ? "الفيديو جاهز للتشغيل والتنزيل من مشغل الفيديو." : "Your generated video is ready to play and download from the player.") : (generationStatus || copy.previewSub)}</p>
+            {generatedVideo && <a className="download-video" href={generatedVideo} download="veocraft-video.mp4">{isArabic ? "تنزيل الفيديو MP4 ↓" : "Download MP4 ↓"}</a>}
             <div className="preview-meta"><div><span>{isArabic ? "النمط" : "Mode"}</span><strong>{mode === "text" ? copy.textMode : copy.imageMode}</strong></div><div><span>{isArabic ? "المدة" : "Duration"}</span><strong>{duration}s</strong></div><div><span>{isArabic ? "الدقة" : "Resolution"}</span><strong>{quality}</strong></div></div>
             <div className="transparency"><div className="transparency-icon">✓</div><div><strong>{copy.note}</strong><p>{copy.noteText}</p></div></div>
           </section>
