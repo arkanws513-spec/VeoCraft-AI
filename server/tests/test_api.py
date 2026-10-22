@@ -40,6 +40,7 @@ def test_unsupported_resolution_is_rejected_before_queue(monkeypatch, tmp_path):
     (repo / "generate.py").write_text("# placeholder")
     model = tmp_path / "model"
     model.mkdir()
+    (model / "placeholder.weight").write_text("test")
     monkeypatch.setenv("VEOCRAFT_WAN_REPO_DIR", str(repo))
     monkeypatch.setenv("VEOCRAFT_MODEL_DIR", str(model))
     response = client.post("/api/generate", json={"prompt": "Test", "resolution": "1080p"})
