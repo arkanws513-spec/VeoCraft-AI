@@ -62,7 +62,7 @@ def _runtime() -> tuple[Path, Path]:
     model = Path(os.getenv("VEOCRAFT_MODEL_DIR", "")).expanduser().resolve()
     if not os.getenv("VEOCRAFT_WAN_REPO_DIR") or not (repo / "generate.py").is_file():
         raise HTTPException(503, detail={"code": "WAN_RUNTIME_MISSING", "message": "Set VEOCRAFT_WAN_REPO_DIR to an official Wan2.2 checkout containing generate.py."})
-    if not os.getenv("VEOCRAFT_MODEL_DIR") or not model.is_dir():
+    if not os.getenv("VEOCRAFT_MODEL_DIR") or not model.is_dir() or not any(model.iterdir()):
         raise HTTPException(503, detail={"code": "MODEL_WEIGHTS_MISSING", "message": "Set VEOCRAFT_MODEL_DIR to the downloaded Wan2.2-TI2V-5B weights directory."})
     return repo, model
 
