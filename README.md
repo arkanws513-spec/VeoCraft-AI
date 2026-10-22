@@ -4,7 +4,7 @@ Arabic/English video-generation studio with a local, open-weight inference path.
 
 ## Current functionality
 
-- Arabic/English responsive studio UI.
+- Arabic/English responsive studio UI, installable as a lightweight PWA on Android.
 - Text-to-video and image-to-video request flows.
 - Image upload with file-size/type checks.
 - Async job IDs, status polling, error reporting, and real MP4 playback/download.
@@ -34,7 +34,7 @@ The frontend defaults to `http://localhost:8000` for the API. Set `VITE_API_BASE
 ## Quick start: local model runtime
 
 1. Install a compatible Python/PyTorch environment following the [official Wan2.2 instructions](https://github.com/Wan-Video/Wan2.2).
-2. Download the official `Wan-AI/Wan2.2-TI2V-5B` weights outside this Git repository.
+2. Download the official `Wan-AI/Wan2.2-TI2V-5B` weights outside this Git repository. On Linux/macOS, `bash scripts/download_wan2_2_weights.sh` automates the checkout and weight download; it does not install CUDA/PyTorch or verify GPU compatibility.
 3. Install `server/requirements.txt` in the same Python environment used by the Wan runtime.
 4. Set:
    - `VEOCRAFT_WAN_REPO_DIR`: path to the official Wan2.2 checkout containing `generate.py`.
