@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from typing import Literal
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,17 +49,14 @@ def health() -> dict[str, str]:
 
 @app.get("/api/engine")
 def engine_status() -> dict[str, str | bool]:
-    configured = os.getenv("VEOCRAFT_ENGINE") == "wan22-ti2v-5b"
     model_path = os.getenv("VEOCRAFT_MODEL_DIR", "")
+    model_files_present = bool(model_path and Path(model_path).is_dir())
     return {
-        "configured": bool(configured and model_path),
-        "engine": "wan22-ti2v-5b" if configured and model_path else "none",
-        "status": "ready" if configured and model_path else "not_configured",
-        "message": (
-            "Engine configuration detected; runtime validation is still required."
-            if configured and model_path
-            else "No inference engine is connected. Generation is disabled."
-        ),
+        "configured": False,
+        "engine": "none",
+        "status": "not_implemented",
+        "model_directory_present": model_files_present,
+        "message": "No verified inference adapter is implemented. Generation is disabled.",
     }
 
 
