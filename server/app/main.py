@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import uuid
 from pathlib import Path
@@ -76,7 +77,7 @@ def engine_status() -> dict[str, str | bool]:
     repo_value = os.getenv("VEOCRAFT_WAN_REPO_DIR", "")
     model_value = os.getenv("VEOCRAFT_MODEL_DIR", "")
     repo_ok = bool(repo_value and (Path(repo_value).expanduser() / "generate.py").is_file())
-    model_ok = bool(model_value and Path(model_value).expanduser().is_dir())
+    model_ok = bool(model_value and Path(model_value).expanduser().is_dir() and any(Path(model_value).expanduser().iterdir()))
     configured = repo_ok and model_ok
     return {
         "configured": configured,
@@ -139,7 +140,7 @@ def _run_generation(job_id: str, request: GenerationRequest) -> None:
                 raise RuntimeError("Remove the reference image or choose image-to-video mode.")
             frames = 4 * round(request.duration_seconds * 24 / 4) + 1
             command = [
-                os.getenv("VEOCRAFT_PYTHON", shutil.which("python") or "python"),
+                os.getenv("VEOCRAFT_PYTHON", sys.executable),
                 str(repo / "generate.py"),
                 "--task", "ti2v-5B",
                 "--size", sizes[request.aspect_ratio],
