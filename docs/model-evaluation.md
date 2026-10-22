@@ -15,20 +15,24 @@ This document separates model capability from the cost of serving it. Model weig
 - LTX-2 official inference repository: https://github.com/Lightricks/LTX-2
 - LTX-2.5 license: https://github.com/rainstardev/LTX-2.5/blob/main/LICENSE.md
 
-## Why the first candidate is not yet integrated
+## Integration and verification status
+
+The API now has a local adapter that invokes the official Wan2.2 `generate.py` entry point, accepts image uploads, queues jobs, polls job status, and serves a result only after an MP4 container is validated. The frontend calls those endpoints and offers video playback/download. This is code-level integration only: no real GPU generation has yet been executed or verified in this environment.
+
+## Why production generation is not yet verified
 
 1. The project currently has no guaranteed GPU host and no budget for paid inference.
 2. We must first run a real short generation on available hardware and record the exact commands, model revision, runtime, peak memory, elapsed time, and output file.
 3. We must confirm the precise model and dependency licenses before distributing the model or offering hosted generation.
-4. No model weights should be committed to this repository. Download them into a local or dedicated model cache.
+4. No model weights should be committed to this repository. Download them into a local or dedicated model cache using `scripts/download_wan2_2_weights.sh` on Linux/macOS, then run `python scripts/smoke_test_api.py` after starting the configured API.
 
-## Acceptance criteria before enabling generation
+## Acceptance criteria before production use
 
 - [ ] Model and code licenses reviewed for the intended deployment.
-- [ ] A clean environment can install the pinned inference dependencies.
-- [ ] Text-to-video produces a valid playable video file.
-- [ ] Image-to-video produces a valid playable video file.
-- [ ] API returns a real job state and a verified output path only after successful inference.
+- [ ] A clean target GPU environment can install compatible, pinned inference dependencies.
+- [ ] Run the smoke test and verify text-to-video produces a valid playable video file.
+- [ ] Run an image-to-video smoke test and verify the resulting file.
+- [x] API job lifecycle and output checks are implemented in code; real GPU behavior remains unverified.
 - [ ] Cancellation, timeout, insufficient VRAM, and missing weights return explicit errors.
 - [ ] Hosting plan is costed before any public deployment.
 
