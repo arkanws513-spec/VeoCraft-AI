@@ -61,7 +61,9 @@ with httpx.Client(timeout=60) as client:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(video_response.content)
 
-with output.open("rb") as stream:\n    header = stream.read(32)\nif output.stat().st_size < 1024 or b"ftyp" not in header:
+with output.open("rb") as stream:
+    header = stream.read(32)
+if output.stat().st_size < 1024 or b"ftyp" not in header:
     raise SystemExit(f"Output is not a valid-looking MP4 container: {output}")
 ffprobe = shutil.which("ffprobe")
 if ffprobe:
