@@ -122,6 +122,25 @@ async def upload_image(file: UploadFile = File(...)) -> dict[str, str]:
     return {"image_reference": token, "filename": Path(file.filename or "image").name}
 
 
+def _validate_mp4(path: Path) -> None:
+    if not path.is_file() or path.stat().st_size < 1024:
+        raise RuntimeError("Wan2.2 exited without producing a non-empty video file.")
+    with path.open("rb") as stream:
+        header = stream.read(32)
+    if b"ftyp" not in header:
+        raise RuntimeError("The generated output does not have an MP4 container signature.")
+    ffprobe = shutil.which("ffprobe")
+    if ffprobe:
+        probe = subprocess.run(
+            [ffprobe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_type", "-of", "default=noprint_wrappers=1:nokey=1",
+             str(path)],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+        if probe.returncode != 0 or "video" not in probe.stdout.split():
+            raise RuntimeError("ffprobe could not verify a playable video stream.")
+
+
 def _run_generation(job_id: str, request: GenerationRequest) -> None:
     with JOBS_LOCK:
         JOBS[job_id]["status"] = "running"
@@ -172,8 +191,7 @@ def _run_generation(job_id: str, request: GenerationRequest) -> None:
             if completed.returncode != 0:
                 details = (completed.stderr or completed.stdout or "Wan2.2 process failed")[-3000:]
                 raise RuntimeError(details)
-            if not output.is_file() or output.stat().st_size < 1024:
-                raise RuntimeError("Wan2.2 exited without producing a valid output file.")
+            _validate_mp4(output)
             with JOBS_LOCK:
                 JOBS[job_id].update(status="completed", message="Video generated", video_url=f"/api/jobs/{job_id}/video")
         finally:
