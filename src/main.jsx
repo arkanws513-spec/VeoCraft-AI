@@ -41,13 +41,13 @@ function App() {
     textMode: "نص إلى فيديو", imageMode: "صورة إلى فيديو", prompt: "وصف المشهد",
     placeholder: "مثال: مدينة مستقبلية في القاهرة وقت الغروب، حركة كاميرا سينمائية ناعمة، إضاءة ذهبية وتفاصيل واقعية...",
     hint: "كلما كان الوصف أدق، كان توجيه النموذج أوضح.", upload: "أضف صورة مرجعية",
-    uploadHint: "PNG أو JPG — ستُستخدم كمرجع بصري عند ربط محرك التوليد", ratio: "أبعاد الفيديو",
-    duration: "المدة", quality: "الدقة المستهدفة", generate: "تجهيز عملية التوليد",
+    uploadHint: "PNG أو JPG أو WebP حتى 12 ميجابايت — تُرفع إلى خادم التوليد المحلي", ratio: "أبعاد الفيديو",
+    duration: "المدة", quality: "الدقة المستهدفة", generate: "إنشاء الفيديو",
     preview: "معاينة الفيديو", previewSub: "ستظهر النتيجة هنا بعد اكتمال التوليد الفعلي",
     waiting: "بانتظار وصفك", waitingSub: "ابدأ بكتابة فكرة المشهد في المربع المجاور",
     status: "حالة المشروع", statusText: "واجهة متصلة بمحرك محلي عند توفره", runtime: "محرك التوليد",
     runtimeText: "لم يتم ربط نموذج بعد", cost: "التكلفة المستهدفة", costText: "مجاني قدر الإمكان",
-    note: "شفافية مهمة", noteText: "هذه النسخة تجهّز واجهة المشروع فقط. لن نعرض فيديو وهميًا أو ندّعي نجاح التوليد قبل تشغيل نموذج حقيقي والتحقق من الناتج.",
+    note: "شفافية مهمة", noteText: "يتطلب التوليد اتصال API محليًا بنموذج Wan2.2 وأوزانه وGPU مناسب. لن نعرض فيديو وهميًا؛ سيظهر الناتج بعد إنشاء ملف MP4 حقيقي.",
     sample: "جرّب فكرة", samplePrompt: "لقطة سينمائية لطائرة ورقية تحلّق فوق نهر النيل عند الشروق، انعكاسات ذهبية على الماء، حركة كاميرا بطيئة وواقعية.",
     engineTag: "OPEN-WEIGHTS FIRST", project: "مشروع جديد", mobile: "جاهز للويب — تصميم متجاوب للموبايل"
   } : {
@@ -57,13 +57,13 @@ function App() {
     textMode: "Text to video", imageMode: "Image to video", prompt: "Scene prompt",
     placeholder: "Example: A futuristic city in Cairo at sunset, smooth cinematic camera movement, golden light and realistic details...",
     hint: "Specific prompts give the model clearer direction.", upload: "Add a reference image",
-    uploadHint: "PNG or JPG — used as a visual reference once a generation engine is connected", ratio: "Aspect ratio",
-    duration: "Duration", quality: "Target resolution", generate: "Prepare generation",
+    uploadHint: "PNG, JPG, or WebP up to 12 MB — uploaded to your local generation API", ratio: "Aspect ratio",
+    duration: "Duration", quality: "Target resolution", generate: "Generate video",
     preview: "Video preview", previewSub: "Your result will appear here after real generation completes",
     waiting: "Waiting for your prompt", waitingSub: "Describe a scene to get your project ready",
     status: "Project status", statusText: "Studio connected to a local runtime when available", runtime: "Generation engine",
     runtimeText: "No model connected yet", cost: "Cost target", costText: "Free where possible",
-    note: "Transparency note", noteText: "This build prepares the interface only. It will not show a fake video or claim generation succeeded before a real model has run and its output has been checked.",
+    note: "Transparency note", noteText: "Generation requires a local API connected to Wan2.2 weights and a suitable GPU. No fake video is shown; a result appears only after a real MP4 is created.",
     sample: "Try an idea", samplePrompt: "A cinematic shot of a kite flying over the Nile at sunrise, golden reflections on the water, slow realistic camera movement.",
     engineTag: "OPEN-WEIGHTS FIRST", project: "New project", mobile: "Web-ready — responsive mobile layout"
   };
@@ -186,9 +186,9 @@ function App() {
             <div className="section-divider" />
             <div className="panel-heading compact"><div><span className="step">02</span><h2>{isArabic ? "إعدادات الفيديو" : "Video settings"}</h2></div></div>
             <div className="settings-grid">
-              <label className="setting"><span>{copy.ratio}</span><select value={ratio} onChange={e => setRatio(e.target.value)}><option>9:16</option><option>16:9</option><option>1:1</option><option>4:3</option></select><small>{ratio === "9:16" ? (isArabic ? "عمودي · Shorts / Reels" : "Portrait · Shorts / Reels") : ratio === "16:9" ? (isArabic ? "أفقي · YouTube" : "Landscape · YouTube") : (isArabic ? "تنسيق متعدد الاستخدامات" : "Flexible format")}</small></label>
+              <label className="setting"><span>{copy.ratio}</span><select value={ratio} onChange={e => setRatio(e.target.value)}><option>9:16</option><option>16:9</option></select><small>{ratio === "9:16" ? (isArabic ? "عمودي · Shorts / Reels" : "Portrait · Shorts / Reels") : ratio === "16:9" ? (isArabic ? "أفقي · YouTube" : "Landscape · YouTube") : (isArabic ? "تنسيق متعدد الاستخدامات" : "Flexible format")}</small></label>
               <label className="setting"><span>{copy.duration}</span><select value={duration} onChange={e => setDuration(e.target.value)}><option value="5">5 {isArabic ? "ثوانٍ" : "seconds"}</option><option value="8">8 {isArabic ? "ثوانٍ" : "seconds"}</option><option value="10">10 {isArabic ? "ثوانٍ" : "seconds"}</option><option value="15">15 {isArabic ? "ثانية" : "seconds"}</option></select><small>{isArabic ? "المدة الفعلية تعتمد على النموذج" : "Actual duration depends on the model"}</small></label>
-              <label className="setting full"><span>{copy.quality}</span><select value={quality} onChange={e => setQuality(e.target.value)}><option>480p</option><option>720p</option><option>1080p</option></select><small>{isArabic ? "خيارات الدقة ستتحدد حسب قدرة محرك التوليد." : "Available resolution will depend on the generation engine."}</small></label>
+              <label className="setting full"><span>{copy.quality}</span><select value={quality} onChange={e => setQuality(e.target.value)}><option>720p</option></select><small>{isArabic ? "خيارات الدقة ستتحدد حسب قدرة محرك التوليد." : "Available resolution will depend on the generation engine."}</small></label>
             </div>
             <button className="generate-btn" type="submit" disabled={busy}><span>✦</span>{busy ? (isArabic ? "جارٍ التوليد..." : "Generating...") : copy.generate}<b>{busy ? "…" : "↗"}</b></button>
             {notice && <div className="notice" role="status"><span>ⓘ</span><p>{notice}</p></div>}
