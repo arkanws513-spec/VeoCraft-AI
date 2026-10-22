@@ -1,7 +1,8 @@
-import React, { useState } from "react";
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
 
 function App() {
   const [language, setLanguage] = useState("ar");
@@ -16,7 +17,22 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [generatedVideo, setGeneratedVideo] = useState("");
   const [generationStatus, setGenerationStatus] = useState("");
+  const [engineState, setEngineState] = useState("checking");
   const isArabic = language === "ar";
+  const engineStatusText = engineState === "ready"
+    ? (isArabic ? "المحرك مُهيّأ محليًا" : "Local runtime configured")
+    : engineState === "checking"
+      ? (isArabic ? "جارٍ فحص اتصال المحرك..." : "Checking engine connection...")
+      : (isArabic ? "الخادم أو النموذج غير متاح" : "Server or model unavailable");
+
+  useEffect(() => {
+    let active = true;
+    fetch(API_BASE + "/api/engine")
+      .then(response => response.ok ? response.json() : Promise.reject(new Error("API unavailable")))
+      .then(data => { if (active) setEngineState(data.configured ? "ready" : "missing"); })
+      .catch(() => { if (active) setEngineState("offline"); });
+    return () => { active = false; };
+  }, []);
 
   const copy = isArabic ? {
     workspace: "مساحة العمل", create: "إنشاء فيديو", library: "مكتبتي", models: "محركات التوليد",
@@ -29,7 +45,7 @@ function App() {
     duration: "المدة", quality: "الدقة المستهدفة", generate: "تجهيز عملية التوليد",
     preview: "معاينة الفيديو", previewSub: "ستظهر النتيجة هنا بعد اكتمال التوليد الفعلي",
     waiting: "بانتظار وصفك", waitingSub: "ابدأ بكتابة فكرة المشهد في المربع المجاور",
-    status: "حالة المشروع", statusText: "واجهة أولية قيد التطوير", runtime: "محرك التوليد",
+    status: "حالة المشروع", statusText: "واجهة متصلة بمحرك محلي عند توفره", runtime: "محرك التوليد",
     runtimeText: "لم يتم ربط نموذج بعد", cost: "التكلفة المستهدفة", costText: "مجاني قدر الإمكان",
     note: "شفافية مهمة", noteText: "هذه النسخة تجهّز واجهة المشروع فقط. لن نعرض فيديو وهميًا أو ندّعي نجاح التوليد قبل تشغيل نموذج حقيقي والتحقق من الناتج.",
     sample: "جرّب فكرة", samplePrompt: "لقطة سينمائية لطائرة ورقية تحلّق فوق نهر النيل عند الشروق، انعكاسات ذهبية على الماء، حركة كاميرا بطيئة وواقعية.",
@@ -45,7 +61,7 @@ function App() {
     duration: "Duration", quality: "Target resolution", generate: "Prepare generation",
     preview: "Video preview", previewSub: "Your result will appear here after real generation completes",
     waiting: "Waiting for your prompt", waitingSub: "Describe a scene to get your project ready",
-    status: "Project status", statusText: "Early interface build", runtime: "Generation engine",
+    status: "Project status", statusText: "Studio connected to a local runtime when available", runtime: "Generation engine",
     runtimeText: "No model connected yet", cost: "Cost target", costText: "Free where possible",
     note: "Transparency note", noteText: "This build prepares the interface only. It will not show a fake video or claim generation succeeded before a real model has run and its output has been checked.",
     sample: "Try an idea", samplePrompt: "A cinematic shot of a kite flying over the Nile at sunrise, golden reflections on the water, slow realistic camera movement.",
@@ -138,7 +154,7 @@ function App() {
           <a className="nav-item" href="#models" onClick={e => {e.preventDefault();setNotice(isArabic ? "نراجع النماذج والترخيص ومتطلبات التشغيل قبل ربط أي محرك." : "Models, licenses and hardware requirements are being reviewed before connecting an engine.");}}><span>◈</span>{copy.models}</a>
         </nav>
         <div className="sidebar-bottom">
-          <div className="engine-card"><div className="engine-orb">✳</div><div><strong>{copy.engineTag}</strong><small>{copy.runtimeText}</small></div><span className="status-dot" /></div>
+          <div className="engine-card"><div className="engine-orb">✳</div><div><strong>{copy.engineTag}</strong><small>{engineStatusText}</small></div><span className="status-dot" /></div>
           <a className="nav-item muted" href="#settings" onClick={e => {e.preventDefault();setNotice(isArabic ? "الإعدادات ستُضاف لاحقًا." : "Settings will be added later.");}}><span>⚙</span>{copy.settings}</a>
           <div className="profile"><div className="avatar">VC</div><div><strong>VeoCraft Studio</strong><small>{copy.mobile}</small></div><span className="more">•••</span></div>
         </div>
@@ -192,7 +208,7 @@ function App() {
           </section>
         </div>
 
-        <section className="status-strip"><div className="status-item"><span className="status-icon">◌</span><div><small>{copy.status}</small><strong>{copy.statusText}</strong></div></div><div className="status-item"><span className="status-icon">✳</span><div><small>{copy.runtime}</small><strong>{copy.runtimeText}</strong></div></div><div className="status-item"><span className="status-icon">◇</span><div><small>{copy.cost}</small><strong>{copy.costText}</strong></div></div><div className="version">V 0.2.0 <span>•</span> LOCAL INFERENCE</div></section>
+        <section className="status-strip"><div className="status-item"><span className="status-icon">◌</span><div><small>{copy.status}</small><strong>{copy.statusText}</strong></div></div><div className="status-item"><span className="status-icon">✳</span><div><small>{copy.runtime}</small><strong>{engineStatusText}</strong></div></div><div className="status-item"><span className="status-icon">◇</span><div><small>{copy.cost}</small><strong>{copy.costText}</strong></div></div><div className="version">V 0.2.0 <span>•</span> LOCAL INFERENCE</div></section>
         <footer>VeoCraft AI <span>·</span> {isArabic ? "مصنوع لبناء أدوات إبداعية مفتوحة" : "Built for open creative tools"}</footer>
       </main>
     </div>
