@@ -6,8 +6,8 @@ installed. It never returns a fake video or marks a job as completed without out
 from __future__ import annotations
 
 import os
-from typing import Literal
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="VeoCraft AI API",
-    version="0.1.0",
+    version="0.1.1",
     description="Video generation API scaffold; inference is disabled until configured.",
 )
 
@@ -44,7 +44,7 @@ class GenerationRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "veocraft-api", "version": "0.1.0"}
+    return {"status": "ok", "service": "veocraft-api", "version": "0.1.1"}
 
 
 @app.get("/api/engine")
@@ -54,9 +54,9 @@ def engine_status() -> dict[str, str | bool]:
     return {
         "configured": False,
         "engine": "none",
-        "status": "not_implemented",
+        "status": "not_configured",
         "model_directory_present": model_files_present,
-        "message": "No verified inference adapter is implemented. Generation is disabled.",
+        "message": "No verified inference adapter is connected. Generation remains disabled.",
     }
 
 
