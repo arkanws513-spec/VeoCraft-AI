@@ -26,6 +26,9 @@ function App() {
       : (isArabic ? "الخادم أو النموذج غير متاح" : "Server or model unavailable");
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
     let active = true;
     fetch(API_BASE + "/api/engine")
       .then(response => response.ok ? response.json() : Promise.reject(new Error("API unavailable")))
