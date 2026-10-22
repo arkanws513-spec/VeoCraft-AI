@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? "http://localhost:8000" : "")).replace(/\/$/, "");
 
 function App() {
   const [language, setLanguage] = useState("ar");
@@ -23,13 +23,14 @@ function App() {
     ? (isArabic ? "المحرك مُهيّأ محليًا" : "Local runtime configured")
     : engineState === "checking"
       ? (isArabic ? "جارٍ فحص اتصال المحرك..." : "Checking engine connection...")
-      : (isArabic ? "الخادم أو النموذج غير متاح" : "Server or model unavailable");
+      : (isArabic ? "خادم التوليد غير مربوط بعد" : "Generation API is not connected yet");
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
     let active = true;
+    if (!API_BASE) { setEngineState("missing"); return () => { active = false; }; }
     fetch(API_BASE + "/api/engine")
       .then(response => response.ok ? response.json() : Promise.reject(new Error("API unavailable")))
       .then(data => { if (active) setEngineState(data.configured ? "ready" : "missing"); })
@@ -81,6 +82,12 @@ function App() {
       setNotice(isArabic ? "ارفع صورة مرجعية وانتظر اكتمال رفعها أولًا." : "Upload a reference image and wait for the upload to finish first.");
       return;
     }
+    if (!API_BASE) {
+      setNotice(isArabic
+        ? "واجهة التطبيق منشورة، لكن خادم التوليد لم يُنشر أو يُربط بعد. يلزم تشغيل API على خادم يدعم النموذج ثم ضبط VITE_API_BASE_URL."
+        : "The studio UI is published, but the generation API is not deployed or connected yet. Host the model API and set VITE_API_BASE_URL.");
+      return;
+    }
     setBusy(true);
     setGeneratedVideo("");
     setGenerationStatus(isArabic ? "جارٍ إرسال الطلب..." : "Submitting request...");
@@ -126,6 +133,10 @@ function App() {
     setImageToken("");
     setNotice("");
     if (!file) return;
+    if (!API_BASE) {
+      setNotice(isArabic ? "خادم رفع الصور غير مربوط بعد." : "The image-upload API is not connected yet.");
+      return;
+    }
     const body = new FormData();
     body.append("file", file);
     try {
