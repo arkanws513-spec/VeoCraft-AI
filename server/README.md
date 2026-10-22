@@ -1,36 +1,68 @@
-# VeoCraft API
+# VeoCraft local inference API
 
-This is a FastAPI service scaffold. The API health check works, but it does **not** generate videos yet.
+The FastAPI service is connected to the official Wan2.2 command-line inference entry point. It supports real text-to-video and image-to-video jobs only when the official code, model weights, Python dependencies, and suitable GPU are installed on the API machine.
 
-## Run locally
+## 1. Prepare Wan2.2
 
-From the repository root:
+Follow the official [Wan2.2 repository instructions](https://github.com/Wan-Video/Wan2.2). Clone the repository and install its pinned/official requirements in a compatible Python environment. Download `Wan-AI/Wan2.2-TI2V-5B` weights to a local directory outside this project. For the official 720p path, the project documents a GPU with about 24 GB VRAM and these memory-saving flags: model offload, dtype conversion, and T5 on CPU.
+
+Do not commit weights to Git.
+
+## 2. Install VeoCraft API dependencies
+
+Use the same Python environment that can import the Wan runtime:
 
 ```bash
-python -m venv .venv
-# Linux/macOS
-source .venv/bin/activate
-# Windows PowerShell: .venv\\Scripts\\Activate.ps1
-pip install -r server/requirements.txt
-uvicorn server.app.main:app --reload --host 127.0.0.1 --port 8000
+python -m pip install -r server/requirements.txt
 ```
 
-## API
+Set environment variables (Linux/macOS example):
 
-- `GET /health` — API health only.
-- `GET /api/engine` — reports `not_configured` until a verified inference adapter is connected.
-- `POST /api/generate` — currently returns HTTP 503 with `ENGINE_NOT_CONFIGURED`; it never returns a fake video URL.
+```bash
+export VEOCRAFT_WAN_REPO_DIR="$HOME/Wan2.2"
+export VEOCRAFT_MODEL_DIR="$HOME/models/Wan2.2-TI2V-5B"
+export VEOCRAFT_ALLOWED_ORIGINS="http://localhost:5173"
+uvicorn server.app.main:app --host 0.0.0.0 --port 8000
+```
 
-The API tests check health, engine state, request validation, and that generation fails honestly while the runtime is absent. They do not prove that a model can generate a video.
+PowerShell example:
 
-## Environment
+```powershell
+$env:VEOCRAFT_WAN_REPO_DIR = "$HOME\Wan2.2"
+$env:VEOCRAFT_MODEL_DIR = "$HOME\models\Wan2.2-TI2V-5B"
+$env:VEOCRAFT_ALLOWED_ORIGINS = "http://localhost:5173"
+python -m uvicorn server.app.main:app --host 0.0.0.0 --port 8000
+```
 
-- `VEOCRAFT_ALLOWED_ORIGINS`: comma-separated allowed frontend origins; defaults to `http://localhost:5173`.
-- `VEOCRAFT_ENGINE`: reserved for a future verified adapter identifier.
-- `VEOCRAFT_MODEL_DIR`: reserved for local model files; weights must not be committed to Git.
+Optional variables:
+- `VEOCRAFT_PYTHON`: explicit Python executable; defaults to the current API interpreter.
+- `VEOCRAFT_DATA_DIR`: upload/output directory; defaults to `runtime_data/` in the project.
+- `VEOCRAFT_GENERATION_TIMEOUT_SECONDS`: subprocess timeout; defaults to 7200.
 
-## First model candidate
+## 3. API endpoints
 
-Wan2.2 TI2V-5B is the first candidate for a real local smoke test because the official project supports both text-to-video and image-to-video. The official 720p example requires a GPU with about 24 GB VRAM and memory-saving flags. This is not a promise of free cloud hosting. See the [official Wan2.2 repository](https://github.com/Wan-Video/Wan2.2).
+- `GET /health` — service health.
+- `GET /api/engine` — checks whether the Wan checkout and non-empty model directory are configured. It does not prove GPU inference works.
+- `POST /api/upload-image` — multipart field `file`, accepts PNG/JPEG/WebP up to 12 MB, returns an opaque `image_reference`.
+- `POST /api/generate` — JSON request, returns a queued job ID.
+- `GET /api/jobs/{id}` — poll job status; `video_url` appears only after a real MP4 exists.
+- `GET /api/jobs/{id}/video` — serves a completed MP4.
 
-Before enabling generation, a real short clip must be produced and verified on the target runtime. Record the exact model revision, hardware, runtime, memory use, and output file. If no suitable GPU is available, keep generation disabled rather than silently using a paid API.
+Example request:
+
+```json
+{
+  "prompt": "A cinematic sunrise over the Nile, realistic water reflections, slow camera movement",
+  "mode": "text",
+  "aspect_ratio": "9:16",
+  "duration_seconds": 5,
+  "resolution": "720p",
+  "image_reference": null
+}
+```
+
+Current adapter limits: 720p, 9:16 or 16:9, requested duration 5–15 seconds. Model generation is computationally expensive; requests run on the API host and may take a long time.
+
+## 4. Before public deployment
+
+This is an initial single-process implementation. Job state is in memory and resets on restart. It does not yet include authentication, rate limiting, persistent jobs, queue recovery, per-user storage, or automatic cleanup. Keep it private/local until those controls and a real GPU smoke test are completed. Configure HTTPS and CORS for the exact frontend origin.
