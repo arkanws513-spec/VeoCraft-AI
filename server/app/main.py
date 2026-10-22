@@ -20,7 +20,7 @@ app = FastAPI(
 
 allowed_origins = [
     item.strip()
-    for item in os.getenv("VEОCRAFT_ALLOWED_ORIGINS", os.getenv("VEОCRAFT_ALLOWED_ORIGINS", "http://localhost:5173")).split(",")
+    for item in os.getenv("VEOCRAFT_ALLOWED_ORIGINS", os.getenv("VEOCRAFT_ALLOWED_ORIGINS", "http://localhost:5173")).split(",")
     if item.strip()
 ]
 app.add_middleware(
