@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from server.app.main import app
+from pathlib import Path\n\nfrom server.app.main import _validate_mp4, app
 
 client = TestClient(app)
 
@@ -68,3 +68,23 @@ def test_image_upload_rejects_corrupt_image_bytes():
     )
     assert response.status_code == 415
     assert response.json()["detail"]["code"] == "INVALID_IMAGE"
+
+
+def test_mp4_validation_rejects_non_mp4(tmp_path):
+    bad_file = tmp_path / "not-video.mp4"
+    bad_file.write_bytes(b"x" * 2048)
+    try:
+        _validate_mp4(bad_file)
+    except RuntimeError as exc:
+        assert "MP4 container signature" in str(exc)
+    else:
+        raise AssertionError("Non-MP4 output should not be accepted")
+
+
+def test_mp4_validation_rejects_missing_file(tmp_path):
+    try:
+        _validate_mp4(tmp_path / "missing.mp4")
+    except RuntimeError as exc:
+        assert "non-empty video file" in str(exc)
+    else:
+        raise AssertionError("Missing output should not be accepted")
