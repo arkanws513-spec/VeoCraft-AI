@@ -51,15 +51,8 @@ def prepare_runtime() -> None:
 
 
 @spaces.GPU(duration=300)
-def generate_video(prompt: str, reference_image: str | None) -> str:
-    prompt = (prompt or "").strip()
-    if not prompt:
-        raise gr.Error("اكتب وصفًا للفيديو أولًا / Enter a video prompt first.")
-    if not GENERATION_LOCK.acquire(blocking=False):
-        raise gr.Error("هناك عملية توليد أخرى قيد التنفيذ. حاول لاحقًا.")
-    try:
-        prepare_runtime()
-        output = OUTPUT_DIR / f"{uuid.uuid4().hex}.mp4"
+def _generate_video_on_gpu(prompt: str, reference_image: str | None) -> str:
+    output = OUTPUT_DIR / f"{uuid.uuid4().hex}.mp4"
         # Five-second baseline: 121 frames at 24 fps. Free ZeroGPU quota may
         # be insufficient; this is intentionally not advertised as guaranteed.
         command = [
@@ -98,6 +91,19 @@ def generate_video(prompt: str, reference_image: str | None) -> str:
         return str(output)
     except subprocess.TimeoutExpired as exc:
         raise gr.Error("انتهت مهلة التوليد؛ حصة ZeroGPU المجانية قد لا تكفي لهذا الطلب.") from exc
+
+
+def generate_video(prompt: str, reference_image: str | None) -> str:
+    prompt = (prompt or "").strip()
+    if not prompt:
+        raise gr.Error("اكتب وصفًا للفيديو أولًا / Enter a video prompt first.")
+    if not GENERATION_LOCK.acquire(blocking=False):
+        raise gr.Error("هناك عملية توليد أخرى قيد التنفيذ. حاول لاحقًا.")
+    try:
+        # Downloading code/weights happens before the GPU allocation so that
+        # network transfer does not consume the small ZeroGPU execution quota.
+        prepare_runtime()
+        return _generate_video_on_gpu(prompt, reference_image)
     except subprocess.CalledProcessError as exc:
         raise gr.Error(f"تعذر تجهيز محرك Wan2.2: {exc}") from exc
     finally:
