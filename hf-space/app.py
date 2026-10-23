@@ -49,7 +49,7 @@ def prepare_runtime() -> None:
         _READY = True
 
 
-@spaces.GPU(duration=300)
+@spaces.GPU(duration=60)
 def _generate_video_on_gpu(prompt: str, reference_image: str | None) -> str:
     output = OUTPUT_DIR / f"{uuid.uuid4().hex}.mp4"
     command = [
@@ -60,7 +60,8 @@ def _generate_video_on_gpu(prompt: str, reference_image: str | None) -> str:
         "--offload_model", "True",
         "--convert_model_dtype",
         "--t5_cpu",
-        "--frame_num", "121",
+        "--frame_num", "49",
+        "--sample_steps", "20",
         "--prompt", prompt,
         "--save_file", str(output),
     ]
@@ -75,7 +76,7 @@ def _generate_video_on_gpu(prompt: str, reference_image: str | None) -> str:
             env=env,
             capture_output=True,
             text=True,
-            timeout=280,
+            timeout=55,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
