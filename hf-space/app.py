@@ -1,8 +1,7 @@
 """Hugging Face ZeroGPU prototype for official Wan2.2 TI2V-5B.
 
-This is a best-effort demo scaffold, not a verified production deployment.
-Free ZeroGPU quotas and long video-generation times can prevent a request from
-finishing. The official CLI is invoked rather than a paid inference provider.
+Best-effort demo scaffold, not a verified production deployment. Free ZeroGPU
+quotas and long video-generation times can prevent a request from finishing.
 """
 from __future__ import annotations
 
@@ -53,24 +52,23 @@ def prepare_runtime() -> None:
 @spaces.GPU(duration=300)
 def _generate_video_on_gpu(prompt: str, reference_image: str | None) -> str:
     output = OUTPUT_DIR / f"{uuid.uuid4().hex}.mp4"
-        # Five-second baseline: 121 frames at 24 fps. Free ZeroGPU quota may
-        # be insufficient; this is intentionally not advertised as guaranteed.
-        command = [
-            sys.executable, str(WAN_REPO / "generate.py"),
-            "--task", "ti2v-5B",
-            "--size", "704*1280",
-            "--ckpt_dir", str(MODEL_DIR),
-            "--offload_model", "True",
-            "--convert_model_dtype",
-            "--t5_cpu",
-            "--frame_num", "121",
-            "--prompt", prompt,
-            "--save_file", str(output),
-        ]
-        if reference_image:
-            command.extend(["--image", reference_image])
-        env = os.environ.copy()
-        env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    command = [
+        sys.executable, str(WAN_REPO / "generate.py"),
+        "--task", "ti2v-5B",
+        "--size", "704*1280",
+        "--ckpt_dir", str(MODEL_DIR),
+        "--offload_model", "True",
+        "--convert_model_dtype",
+        "--t5_cpu",
+        "--frame_num", "121",
+        "--prompt", prompt,
+        "--save_file", str(output),
+    ]
+    if reference_image:
+        command.extend(["--image", reference_image])
+    env = os.environ.copy()
+    env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    try:
         result = subprocess.run(
             command,
             cwd=str(WAN_REPO),
@@ -80,17 +78,17 @@ def _generate_video_on_gpu(prompt: str, reference_image: str | None) -> str:
             timeout=280,
             check=False,
         )
-        if result.returncode != 0:
-            details = (result.stderr or result.stdout or "Wan2.2 generation failed")[-2500:]
-            raise gr.Error("تعذر التوليد على الاستضافة المجانية. قد تكون الحصة أو الذاكرة غير كافية.\n" + details)
-        if not output.is_file() or output.stat().st_size < 1024:
-            raise gr.Error("لم يُنتج المحرك ملف فيديو صالحًا.")
-        with output.open("rb") as video:
-            if b"ftyp" not in video.read(32):
-                raise gr.Error("خرج المحرك ليس ملف MP4 صالحًا.")
-        return str(output)
     except subprocess.TimeoutExpired as exc:
         raise gr.Error("انتهت مهلة التوليد؛ حصة ZeroGPU المجانية قد لا تكفي لهذا الطلب.") from exc
+    if result.returncode != 0:
+        details = (result.stderr or result.stdout or "Wan2.2 generation failed")[-2500:]
+        raise gr.Error("تعذر التوليد على الاستضافة المجانية. قد تكون الحصة أو الذاكرة غير كافية.\n" + details)
+    if not output.is_file() or output.stat().st_size < 1024:
+        raise gr.Error("لم يُنتج المحرك ملف فيديو صالحًا.")
+    with output.open("rb") as video:
+        if b"ftyp" not in video.read(32):
+            raise gr.Error("خرج المحرك ليس ملف MP4 صالحًا.")
+    return str(output)
 
 
 def generate_video(prompt: str, reference_image: str | None) -> str:
@@ -100,8 +98,8 @@ def generate_video(prompt: str, reference_image: str | None) -> str:
     if not GENERATION_LOCK.acquire(blocking=False):
         raise gr.Error("هناك عملية توليد أخرى قيد التنفيذ. حاول لاحقًا.")
     try:
-        # Downloading code/weights happens before the GPU allocation so that
-        # network transfer does not consume the small ZeroGPU execution quota.
+        # Fetching weights happens before GPU allocation, so network transfer
+        # does not consume the small ZeroGPU execution quota.
         prepare_runtime()
         return _generate_video_on_gpu(prompt, reference_image)
     except subprocess.CalledProcessError as exc:
