@@ -1,0 +1,14 @@
+gradio==5.29.0
+spaces
+huggingface_hub>=0.30.0
+transformers==4.51.3
+tokenizers>=0.20.3
+diffusers>=0.31.0
+accelerate>=1.1.1
+opencv-python>=4.9.0.80
+tqdm
+imageio[ffmpeg]
+easydict
+ftfy
+numpy>=1.23.5,<2
+Pillow>=10.0.0
